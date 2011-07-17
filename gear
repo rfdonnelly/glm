@@ -36,8 +36,11 @@ my $section = "none";
 my %db;
 my %manifest;
 
-my $section_weight = 0;
-my %section_weights;
+my %section_total = ();
+my %section_totals = ();
+
+$section_total{w} = 0;
+$section_totals{w} = {};
 
 for (my $mode = 0; $mode < 2; $mode++) {
     my $file = shift;
@@ -53,7 +56,7 @@ for (my $mode = 0; $mode < 2; $mode++) {
                 chomp($section);
 
                 if ($mode == MANIFEST) {
-                    $section_weight = 0;
+                    $section_total{w} = 0;
                     print(uc());
                 }
 
@@ -68,8 +71,8 @@ for (my $mode = 0; $mode < 2; $mode++) {
             if (m/^\s$/) {
                 # end current section -> next section
                 if ($mode == MANIFEST) {
-                    $section_weights{lc($section)} = $section_weight;
-                    printf("%-34s %15s\n", "SUBTOTAL", sprint_weight($section_weight));
+                    $section_totals{w}->{lc($section)} = $section_total{w};
+                    printf("%-34s %15s\n", "SUBTOTAL", sprint_weight($section_total{w}));
                     print();
                 }
                 $state = SECTION;
@@ -99,9 +102,9 @@ sub process_manifest_line {
     if ($id =~ /section::/) {
         # lookup section
         $id =~ s/section:://;
-        die("$Script: section $id does not exist in db.\n") if (!exists($section_weights{$id}));
-        my $weight = $count*$section_weights{$id};
-        $section_weight += $weight;
+        die("$Script: section $id does not exist in db.\n") if (!exists($section_totals{w}->{$id}));
+        my $weight = $count*$section_totals{w}->{$id};
+        $section_total{w} += $weight;
         printf("%+3d %-30s %15s\n", $count, uc($id), sprint_weight(abs($weight)));
     } else {
         # lookup item
@@ -111,7 +114,7 @@ sub process_manifest_line {
         if (exists($db{$id})) {
             %item = %{$db{$id}};
             $weight = $count*$item{w};
-            $section_weight += $weight;
+            $section_total{w} += $weight;
             $weight = sprint_weight(abs($weight));
         } else {
             $weight = "TBD";
