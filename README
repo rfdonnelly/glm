@@ -2,8 +2,8 @@ gear - manage gear lists
 
 gear was created to manange backpacking gear where every ounce counts.
 
-gear requires two files: the gear database and the gear list format
+gear requires two files: the gear database and the gear manifest
 
 The gear database contains all gear and gear attributes.  It consists of one piece of gear per line.  Gear fields are semi-colon separated.
 
-The gear list format defines what the output looks like.  It is broken up into sections.  A section must have one or more lines.  Each line references a piece of gear or a previous section.
+The gear manifest defines what the output looks like.  It is broken up into sections.  A section must have one or more lines.  Each line references a piece of gear or a previous section.
