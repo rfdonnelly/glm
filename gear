@@ -46,6 +46,9 @@ for (my $mode = 0; $mode < 2; $mode++) {
     open(my $fh, "<$file") or die("$Script: could not open file $file\n");
 
     for (my $ln = 1; <$fh>; $ln++) {
+        next if (/^\s*#/); # skip full-line comments
+        s/#.*//; # remove in-line comments 
+
         if ($state == SECTION) {
             if (m/^\w+$/) {
                 # section heading
