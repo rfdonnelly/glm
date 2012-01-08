@@ -1,25 +1,23 @@
 # Gear List Manager
 
---------------------------------------------
-
 ## Description
 
 Manage lists of gear.
 
-gear was created to manange backpacking gear where every ounce counts.
+glm was created to manange backpacking gear where every ounce counts.
 
 ## Usage
 
 ```
-gear <database> <manifest>
+glm <database> <manifest>
 ```
 
-gear requires two files: the gear database and the gear manifest
+glm requires two files: the gear database and the gear manifest
 
 ### Database
 
 The gear database contains all gear and gear attributes.  It is composed of sections.  Each section contains a list of items (one per line).  Sections are separated by a blank line.  Each item is broken up into fields.  Fields are separated by semi-colons.  The first field is the item id.  Succesive fields are attributes.  
-Supportted attributes include weight and description.  Weights are recognized by unit suffix.  Anything not recognized as a weight is automatically used as a description.
+Supported attributes include weight and description.  Weights are recognized by unit suffix.  Anything not recognized as a weight is automatically used as a description.
 
 Example Database:
 
@@ -49,7 +47,7 @@ Section1
 
 ### Output
 
-Given the above database and manifest, gear will output the following:
+Given the above database and manifest, glm will output the following:
 
 ```
 SECTION0
