@@ -175,32 +175,74 @@ sub is_measure {
     return 0;
 }
 
+# parses a single unit w/o multiplier and mixed unit measure
+# single unit
+#   syntax: parse_measure($expr, $unit)
+#   example:
+#       parse_measure('12.4oz', 'oz')
+#       returns 12.4
+# single unit w/ multiplier
+#   syntax: parse_measure($expr, $unit, $multiplier)
+#   example:
+#       parse_measure('5lb', 'lb', 16)
+#       returns 5 * 16
+# mixed unit
+#   syntax: parse_measure($expr, $unit_a, $multiplier_a, $unit_b)
+#   example:
+#       parse_measure('5lb12.4oz', 'lb', 16, 'oz')
+#       returns 5 * 16 + 12.4
+sub parse_measure {
+    my ($expr, @args) = @_;
+
+    if (scalar(@args) == 3) {
+        if ($expr =~ m/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))$args[0]([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))$args[2]/) {
+            return $1 * $args[1] + $3;
+        } else {
+            return 0;
+        }
+    } elsif (scalar(@args) == 2 || scalar(@args) == 1) {
+        if ($expr =~ m/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))$args[0]/) {
+            if (scalar(@args) == 2) {
+                return $1 * $args[1];
+            } else {
+                return $1;
+            }
+        } else {
+            return 0;
+        }
+    } else {
+        die("$Script: FATAL: invalid args");
+    }
+
+}
+
 # returns weight in kg
 sub parse_weight {
-    my ($txt) = @_;
+    my ($expr) = @_;
 
-    if ($txt =~ m/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))lb([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))oz/) {
-        return KG_PER_OZ*($1*16+$3);
-    } elsif ($txt =~ m/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))oz/) {
-        return KG_PER_OZ*($1);
-    } elsif ($txt =~ m/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))lb/) {
-        return KG_PER_OZ*($1*16);
-    } else {
-        die("$Script: unable to parse weight $txt\n");
-    }
+    my $val = parse_measure($expr, 'lb', 16, 'oz');
+    return KG_PER_OZ * $val if ($val);
+
+    $val = parse_measure($expr, 'oz');
+    return KG_PER_OZ * $val if ($val);
+
+    $val = parse_measure($expr, 'lb', 16);
+    return KG_PER_OZ * $val if ($val);
+
+    die("$Script: ERROR: unable to parse volume $expr\n");
 }
 
 # returns volume in L
 sub parse_volume {
-    my ($txt) = @_;
+    my ($expr) = @_;
 
-    if ($txt =~ m/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))L/) {
-        return $1;
-    } elsif ($txt =~ m/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))mL/) {
-        return $1/1000;
-    } else {
-        die("$Script: unable to parse volume $txt\n");
-    }
+    my $val = parse_measure($expr, 'L');
+    return $val if ($val);
+
+    $val = parse_measure($expr, 'mL', 1/1000);
+    return $val if ($val);
+
+    die("$Script: unable to parse volume $expr\n");
 }
 
 sub sprint_id {
