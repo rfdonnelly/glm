@@ -194,14 +194,16 @@ sub is_measure {
 sub parse_measure {
     my ($expr, @args) = @_;
 
+    my $re_decimal = qr/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))/;
+
     if (scalar(@args) == 3) {
-        if ($expr =~ m/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))$args[0]([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))$args[2]/) {
+        if ($expr =~ m/$re_decimal$args[0]$re_decimal$args[2]/) {
             return $1 * $args[1] + $3;
         } else {
             return 0;
         }
     } elsif (scalar(@args) == 2 || scalar(@args) == 1) {
-        if ($expr =~ m/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))$args[0]/) {
+        if ($expr =~ m/$re_decimal$args[0]/) {
             if (scalar(@args) == 2) {
                 return $1 * $args[1];
             } else {
