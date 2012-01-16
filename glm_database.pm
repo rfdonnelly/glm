@@ -3,6 +3,8 @@ package glm_database;
 use Moose;
 use Carp;
 
+use FindBin qw($Script);
+
 use Switch;
 
 use constant {
@@ -13,11 +15,13 @@ use constant {
     VALUE => 4
 };
 
+use constant KG_PER_OZ => 0.0283495231;
+
 has 'state' => (isa => 'Int', is => 'rw', default=>KEYWORD);
 has 'id_stack' => (isa => 'ArrayRef[Str]', is => 'rw', default => sub {[]});
 has 'items' => (isa => 'HashRef[HashRef[Str]]', is => 'rw', default => sub {{}});
 
-has 'value' => (isa => 'Str', is => 'rw');
+has 'value' => (isa => 'Str', is => 'rw', default => '');
 has 'last_keyword' => (isa => 'Str', is => 'rw');
 has 'prev_token' => (isa => 'Str', is => 'rw');
 
@@ -89,7 +93,11 @@ sub parse_token {
         } case VALUE {
             if ($token eq "newline" || $token eq "}") {
                 my $item = $this->current_item();
-                $item->{$this->last_keyword} = $this->value;
+                if ($this->last_keyword eq "weight") {
+                    $item->{$this->last_keyword} = $this->parse_weight($this->value);
+                } else {
+                    $item->{$this->last_keyword} = $this->value;
+                }
                 $this->value("");
 
                 $this->state(KEYWORD);
@@ -120,7 +128,8 @@ sub pop_item {
     my ($this) = @_;
 
     my $item = $this->current_item();
-    $this->print_item($item);
+    #FIXME
+    ##$this->print_item($item);
 
     my $id = pop(@{$this->id_stack});
 }
@@ -155,11 +164,75 @@ sub current_id {
     return join("::", @id_stack);
 }
 
-package main;
-use strict;
+# parses a single unit w/o multiplier and mixed unit measure
+# single unit
+#   syntax: parse_measure($expr, $unit)
+#   example:
+#       parse_measure('12.4oz', 'oz')
+#       returns 12.4
+# single unit w/ multiplier
+#   syntax: parse_measure($expr, $unit, $multiplier)
+#   example:
+#       parse_measure('5lb', 'lb', 16)
+#       returns 5 * 16
+# mixed unit
+#   syntax: parse_measure($expr, $unit_a, $multiplier_a, $unit_b)
+#   example:
+#       parse_measure('5lb12.4oz', 'lb', 16, 'oz')
+#       returns 5 * 16 + 12.4
+sub parse_measure {
+    my ($this, $expr, @args) = @_;
 
-my $db = glm_database->new(filename => shift);
+    my $re_decimal = qr/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))/;
 
-exit(0);
+    if (scalar(@args) == 3) {
+        if ($expr =~ m/$re_decimal$args[0]\s*$re_decimal$args[2]/) {
+            return $1 * $args[1] + $3;
+        } else {
+            return 0;
+        }
+    } elsif (scalar(@args) == 2 || scalar(@args) == 1) {
+        if ($expr =~ m/$re_decimal$args[0]/) {
+            if (scalar(@args) == 2) {
+                return $1 * $args[1];
+            } else {
+                return $1;
+            }
+        } else {
+            return 0;
+        }
+    } else {
+        die("$Script: FATAL: invalid args");
+    }
+
+}
+
+# returns weight in kg
+sub parse_weight {
+    my ($this, $expr) = @_;
+
+    my $val = $this->parse_measure($expr, 'lb', 16, 'oz');
+    return KG_PER_OZ * $val if ($val);
+
+    $val = $this->parse_measure($expr, 'oz');
+    return KG_PER_OZ * $val if ($val);
+
+    $val = $this->parse_measure($expr, 'lb', 16);
+    return KG_PER_OZ * $val if ($val);
+
+    $val = $this->parse_measure($expr, 'g', 1/1000);
+    return $val if ($val);
+
+    die("$Script: ERROR: unable to parse volume $expr\n");
+}
+
+1;
+
+#package main;
+#use strict;
+#
+#my $db = glm_database->new(filename => shift);
+#
+#exit(0);
 
 

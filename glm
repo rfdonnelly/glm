@@ -4,6 +4,8 @@ use strict;
 use FindBin qw($Script);
 use POSIX qw(floor);
 
+use glm_database;
+
 use constant KG_PER_OZ => 0.0283495231;
 
 # modes
@@ -16,7 +18,6 @@ use constant {
 use constant {
     SECTION => 0,
     ITEM => 1,
-    FIELD => 2
 };
 
 our %opts = ();
@@ -39,7 +40,9 @@ my %manifest;
 my $section_weight = 0;
 my %section_weights;
 
-for (my $mode = 0; $mode < 2; $mode++) {
+my $db = glm_database->new(filename => shift);
+
+{
     my $file = shift;
     my $state = SECTION;
 
@@ -55,10 +58,8 @@ for (my $mode = 0; $mode < 2; $mode++) {
                 $section = $_;
                 chomp($section);
 
-                if ($mode == MANIFEST) {
-                    $section_weight = 0;
-                    print(uc());
-                }
+                $section_weight = 0;
+                print(uc());
 
                 $state = ITEM;
             } elsif (m/^\s$/) {
@@ -70,23 +71,15 @@ for (my $mode = 0; $mode < 2; $mode++) {
         } elsif ($state == ITEM) {
             if (m/^\s$/) {
                 # end current section -> next section
-                if ($mode == MANIFEST) {
-                    $section_weights{lc($section)} = $section_weight;
-                    printf("%-34s %15s\n", "SUBTOTAL", sprint_weight($section_weight));
-                    print();
-                }
+                $section_weights{lc($section)} = $section_weight;
+                printf("%-34s %15s\n", "SUBTOTAL", sprint_weight($section_weight));
+                print();
                 $state = SECTION;
-            } elsif ($mode == DB && m/;/) {
-                # item
-                process_db_line($_);
-            } elsif ($mode == MANIFEST && m/^([+-]\d+)\s(.*$)/) {
+            } elsif (m/^([+-]\d+)\s(.*$)/) {
                 # item
                 process_manifest_line($1, $2);
             } else {
                 die("$Script: error - cannot parse item @ $file:$ln\n");
-            }
-        } elsif ($state == FIELD) {
-            if (m/^\w$/) {
             }
         }
     }
@@ -111,140 +104,18 @@ sub process_manifest_line {
         #warn("$Script: id $id does not exist in db.\n") && return if (!exists($db{$id}));
         my $weight;
         my %item;
-        if (exists($db{$id})) {
-            %item = %{$db{$id}};
-            $weight = $count*$item{w};
+        if (exists($db->items->{$id})) {
+            %item = %{$db->items->{$id}};
+            $weight = $count*$item{weight};
             $section_weight += $weight;
             $weight = sprint_weight(abs($weight));
         } else {
             $weight = "TBD";
         }
         printf("%+3d %-30s %15s", $count, sprint_id($id), $weight);
-        printf(" -- %s", $item{d}) if (%item && exists($item{d}));
+        printf(" -- %s", $item{desc}) if (%item && exists($item{desc}));
         print("\n");
     }
-}
-
-sub process_db_line {
-    my ($line) = @_;
-
-    my @fields = split(/;/, $line);
-
-    my %item = (
-        id => shift(@fields)
-    );
-
-    for my $field (@fields) {
-        chomp($field);
-
-        my ($is_meas, $meas_typ, $parse_func) = is_measure($field);
-
-        if ($is_meas) {
-            $item{$meas_typ} = &$parse_func($field);
-        } else {
-            $item{d} = $field;
-        }
-    }
-
-    $db{$item{id}} = \%item;
-}
-
-sub is_measure {
-    my ($str) = @_;
-    
-    if ($str =~ m/\doz$/) {
-        return (1, 'w', \&parse_weight);
-    } elsif ($str =~ m/\dlb$/) {
-        return (1, 'w', \&parse_weight);
-    } elsif ($str =~ m/\dmL$/) {
-        return (1, 'v', \&parse_volume);
-    } elsif ($str =~ m/\dL$/) {
-        return (1, 'v', \&parse_volume);
-    } elsif ($str =~ m/\dkcal$/) {
-        return (1, 'cal', \&parse_energy);
-    } elsif ($str =~ m/\dg fat$/) {
-        return (1, 'fat', \&parse_fat);
-    } elsif ($str =~ m/\dg carb$/) {
-        return (1, 'carb', \&parse_carb);
-    } elsif ($str =~ m/\dg fiber$/) {
-        return (1, 'fiber', \&parse_fiber);
-    } elsif ($str =~ m/\dg protein$/) {
-        return (1, 'protein', \&parse_protein);
-    }
-
-    return 0;
-}
-
-# parses a single unit w/o multiplier and mixed unit measure
-# single unit
-#   syntax: parse_measure($expr, $unit)
-#   example:
-#       parse_measure('12.4oz', 'oz')
-#       returns 12.4
-# single unit w/ multiplier
-#   syntax: parse_measure($expr, $unit, $multiplier)
-#   example:
-#       parse_measure('5lb', 'lb', 16)
-#       returns 5 * 16
-# mixed unit
-#   syntax: parse_measure($expr, $unit_a, $multiplier_a, $unit_b)
-#   example:
-#       parse_measure('5lb12.4oz', 'lb', 16, 'oz')
-#       returns 5 * 16 + 12.4
-sub parse_measure {
-    my ($expr, @args) = @_;
-
-    my $re_decimal = qr/([+-]?(\d+\.\d+|\d+\.|\.\d+|\d+))/;
-
-    if (scalar(@args) == 3) {
-        if ($expr =~ m/$re_decimal$args[0]$re_decimal$args[2]/) {
-            return $1 * $args[1] + $3;
-        } else {
-            return 0;
-        }
-    } elsif (scalar(@args) == 2 || scalar(@args) == 1) {
-        if ($expr =~ m/$re_decimal$args[0]/) {
-            if (scalar(@args) == 2) {
-                return $1 * $args[1];
-            } else {
-                return $1;
-            }
-        } else {
-            return 0;
-        }
-    } else {
-        die("$Script: FATAL: invalid args");
-    }
-
-}
-
-# returns weight in kg
-sub parse_weight {
-    my ($expr) = @_;
-
-    my $val = parse_measure($expr, 'lb', 16, 'oz');
-    return KG_PER_OZ * $val if ($val);
-
-    $val = parse_measure($expr, 'oz');
-    return KG_PER_OZ * $val if ($val);
-
-    $val = parse_measure($expr, 'lb', 16);
-    return KG_PER_OZ * $val if ($val);
-
-    die("$Script: ERROR: unable to parse volume $expr\n");
-}
-
-# returns volume in L
-sub parse_volume {
-    my ($expr) = @_;
-
-    my $val = parse_measure($expr, 'L');
-    return $val if ($val);
-
-    $val = parse_measure($expr, 'mL', 1/1000);
-    return $val if ($val);
-
-    die("$Script: unable to parse volume $expr\n");
 }
 
 sub sprint_id {
