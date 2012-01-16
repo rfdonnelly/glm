@@ -16,19 +16,34 @@ glm requires two files: the gear database and the gear manifest
 
 ### Database
 
-The gear database contains all gear and gear attributes.  It is composed of sections.  Each section contains a list of items (one per line).  Sections are separated by a blank line.  Each item is broken up into fields.  Fields are separated by semi-colons.  The first field is the item id.  Succesive fields are attributes.  
-Supported attributes include weight and description.  Weights are recognized by unit suffix.  Anything not recognized as a weight is automatically used as a description.
+The gear database contains all gear and gear attributes.  It is composed of items.  Items are defined by the item keyword followed by the item id then an opening brace.
+
+Items may contain attributes and associated values (one per line).  Values may contain spaces.
+Supported attributes include weight and description.  Weights are recognized by unit suffix.
+
+Items may be nested.  Items are identified by their full id.  For a nested item with id 'child' and parent item id of 'parent', its full id would be 'parent::child'.
+
+Item format:
+```
+item <id> {
+    <attribute> = <value>
+    <attribute> = <value>
+    
+    item <id> { <attr> = <value> }
+}
+```
 
 Example Database:
 
 ```
-Section0
-Item0;2lb6oz;Item0 Description
-Item1;5oz;Item1 Description
+item Item0 { weight = 1lb 6oz }
 
-Section1
-Item2;1oz
-Item3;23g;Item3 Description
+item Item1 {
+    weight = 5g
+    desc = Item1 Description
+
+    item Item2 { weight = 1g }
+}
 ```
 
 ### Manifest
