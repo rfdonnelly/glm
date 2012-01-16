@@ -24,6 +24,7 @@ Supported attributes include weight and description.  Weights are recognized by 
 Items may be nested.  Items are identified by their full id.  For a nested item with id 'child' and parent item id of 'parent', its full id would be 'parent::child'.
 
 Item format:
+
 ```
 item <id> {
     <attribute> = <value>
