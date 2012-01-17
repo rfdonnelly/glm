@@ -40,10 +40,10 @@ Example Database:
 item Item0 { weight = 1lb 6oz }
 
 item Item1 {
-    weight = 5g
+    weight = 5oz
     desc = Item1 Description
 
-    item Item2 { weight = 1g }
+    item Item2 { weight = 3oz }
 }
 ```
 
@@ -58,7 +58,7 @@ Section0
 
 Section1
 +1 section::Section0
-+3 Item2
++3 Item1::Item2
 ```
 
 ### Output
@@ -73,7 +73,7 @@ SUBTOTAL            2lb 11oz
 
 SECTION1
  +1 SECTION0        2lb 11oz
- +3 Item2                3oz
+ +3 Item1 Item2          3oz
 SUBTOTAL            2lb 14oz
 ```
 
