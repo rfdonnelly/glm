@@ -55,6 +55,6 @@ This message.
 
 =head1 DESCRIPTION
 
-$Script takes a gear database and a gear format to create a gear list.
+$Script takes a gear database and a gear manifest to create a gear list.
 
 =cut
