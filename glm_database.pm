@@ -12,18 +12,32 @@ use constant {
     ID => 1,
     OPEN => 2,
     ASSIGN => 3,
-    VALUE => 4
+    VALUE => 4,
+    INSTANCE => 5,
 };
 
 use constant KG_PER_OZ => 0.0283495231;
 
+# parser state
 has 'state' => (isa => 'Int', is => 'rw', default=>KEYWORD);
-has 'id_stack' => (isa => 'ArrayRef[Str]', is => 'rw', default => sub {[]});
-has 'items' => (isa => 'HashRef[HashRef[Str]]', is => 'rw', default => sub {{}});
 
+# for nested ids
+has 'id_stack' => (isa => 'ArrayRef[Str]', is => 'rw', default => sub {[]});
+
+# type identifiers
+has 'items' => (isa => 'HashRef[HashRef[Str]]', is => 'rw', default => sub {{}});
+has 'groups' => (isa => 'HashRef[ArrayRef[HashRef[Str]]]', is => 'rw', default => sub {{}});
+
+# all identifiers
+has 'identifiers' => (isa => 'HashRef[Str]', is => 'rw', default => sub {{}});
+
+# used to build up a value for the VALUE state
 has 'value' => (isa => 'Str', is => 'rw', default => '');
-has 'last_keyword' => (isa => 'Str', is => 'rw');
+
+# misc
+has 'prev_keyword' => (isa => 'Str', is => 'rw');
 has 'prev_token' => (isa => 'Str', is => 'rw');
+has 'curr_type' => (isa => 'Str', is => 'rw');
 
 has 'filename' => (isa => 'Str', is => 'rw', required => 1);
 
@@ -61,8 +75,12 @@ sub parse_token {
     switch ($this->state) {
         case KEYWORD {
             switch ($token) {
-                case "item" {
+                case "group" {
                     $this->state(ID);
+                    $this->curr_type($token);
+                } case "item" {
+                    $this->state(ID);
+                    $this->curr_type($token);
                 } case "weight" {
                     $this->state(ASSIGN);
                 } case "volume" {
@@ -70,18 +88,45 @@ sub parse_token {
                 } case "desc" {
                     $this->state(ASSIGN);
                 } case "}" {
-                    $this->pop_item();
+                    switch ($this->curr_type) {
+                        case "group" {
+                            $this->pop_group();
+                        } case "item" {
+                            $this->pop_item();
+                        } else {
+                            die;
+                        }
+                    }
                 } case "newline" {
                 } else {
-                    die("unexpected keyword $token");
+                    if ($this->curr_type eq "group" && $token =~ m/^(\+|-)(\d+)$/) {
+                        $this->state(INSTANCE);
+                    } else {
+                        die("unexpected keyword $token");
+                    }
                 }
             }
 
-            $this->last_keyword($token);
-        } case ID {
-            die unless ($this->prev_token eq "item");
+            $this->prev_keyword($token);
+        } case INSTANCE {
+            my $count = $this->prev_token;
+            my $id = $token;
+            my $item = $this->items->{$id};
 
-            $this->push_item($token);
+            print "DBG $count $id $item->{weight}\n";
+            # FIXME add item to current group
+
+            $this->state(KEYWORD);
+        } case ID {
+            switch ($this->prev_token) {
+                case "item" {
+                    $this->push_item($token);
+                } case "group" {
+                    $this->push_group($token);
+                } else {
+                    die;
+                }
+            }
 
             $this->state(OPEN);
         } case OPEN {
@@ -93,10 +138,10 @@ sub parse_token {
         } case VALUE {
             if ($token eq "newline" || $token eq "}") {
                 my $item = $this->current_item();
-                if ($this->last_keyword eq "weight") {
-                    $item->{$this->last_keyword} = $this->parse_weight($this->value);
+                if ($this->prev_keyword eq "weight") {
+                    $item->{$this->prev_keyword} = $this->parse_weight($this->value);
                 } else {
-                    $item->{$this->last_keyword} = $this->value;
+                    $item->{$this->prev_keyword} = $this->value;
                 }
                 $this->value("");
 
@@ -124,6 +169,16 @@ sub push_item {
     $this->items->{$this->current_id()} = $item;
 }
 
+sub push_group {
+    my ($this, $id) = @_;
+
+    push(@{$this->id_stack}, $id);
+
+    my $group = {};
+    $group->{id} = $this->current_id();
+    $this->groups->{$this->current_id()} = $group;
+}
+
 sub pop_item {
     my ($this) = @_;
 
@@ -132,7 +187,28 @@ sub pop_item {
     ##$this->print_item($item);
 
     my $id = pop(@{$this->id_stack});
+
+    my @id_stack = @{$this->id_stack};
+    if (scalar(@id_stack) == 0) {
+        $this->curr_type("");
+    }
 }
+
+sub pop_group {
+    my ($this) = @_;
+
+    my $group = $this->current_group();
+    #FIXME
+    ##$this->print_item($item);
+
+    my $id = pop(@{$this->id_stack});
+
+    my @id_stack = @{$this->id_stack};
+    if (scalar(@id_stack) == 0) {
+        $this->curr_type("");
+    }
+}
+
 
 sub print_item {
     my ($this, $item) = @_;
@@ -148,10 +224,18 @@ sub current_item {
     my ($this) = @_;
 
     my @id_stack = @{$this->id_stack};
-
     die unless (scalar(@id_stack) > 0);
 
     return $this->items->{$this->current_id()};
+}
+
+sub current_group {
+    my ($this) = @_;
+
+    my @id_stack = @{$this->id_stack};
+    die unless (scalar(@id_stack) > 0);
+
+    return $this->groups->{$this->current_id()};
 }
 
 sub current_id {
