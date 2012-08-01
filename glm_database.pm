@@ -29,7 +29,7 @@ has 'items' => (isa => 'HashRef[HashRef[Str]]', is => 'rw', default => sub {{}})
 has 'groups' => (isa => 'HashRef[ArrayRef[HashRef[Str]]]', is => 'rw', default => sub {{}});
 
 # all identifiers
-has 'identifiers' => (isa => 'HashRef[Str]', is => 'rw', default => sub {{}});
+has 'identifiers' => (isa => 'ArrayRef[Str]', is => 'rw', default => sub {[]});
 
 # used to build up a value for the VALUE state
 has 'value' => (isa => 'Str', is => 'rw', default => '');
@@ -40,6 +40,16 @@ has 'prev_token' => (isa => 'Str', is => 'rw');
 has 'curr_type' => (isa => 'Str', is => 'rw');
 
 has 'filename' => (isa => 'Str', is => 'rw', required => 1);
+
+# supported types and their attributes
+my $types = {
+    group => [],
+    item => [
+        "weight",
+        "volume",
+        "desc",
+    ],
+};
 
 # "constructor"
 sub BUILD {
@@ -63,7 +73,7 @@ sub load {
             $this->parse_token($token);
         }
 
-        $this->parse_token("newline");
+        $this->parse_token("\n");
     }
 
     close($fh);
@@ -75,32 +85,34 @@ sub parse_token {
     switch ($this->state) {
         case KEYWORD {
             switch ($token) {
-                case "group" {
-                    $this->state(ID);
-                    $this->curr_type($token);
-                } case "item" {
-                    $this->state(ID);
-                    $this->curr_type($token);
-                } case "weight" {
-                    $this->state(ASSIGN);
-                } case "volume" {
-                    $this->state(ASSIGN);
-                } case "desc" {
-                    $this->state(ASSIGN);
-                } case "}" {
+                case "}" {
                     switch ($this->curr_type) {
                         case "group" {
                             $this->pop_group();
                         } case "item" {
                             $this->pop_item();
                         } else {
-                            die;
+                            die("possible extraneous '}' curr_type " . $this->curr_type);
                         }
                     }
-                } case "newline" {
+                } case "\n" {
                 } else {
-                    if ($this->curr_type eq "group" && $token =~ m/^(\+|-)(\d+)$/) {
+                    my $token_qm = quotemeta($token);
+
+                    if ($this->curr_type && grep(/^$token_qm$/, @{$types->{$this->curr_type}})) {
+                        # parse attributes inside a type
+                        $this->state(ASSIGN);
+                    } elsif (
+                        $this->curr_type 
+                        && $this->curr_type eq "group"
+                        && $token =~ m/^(\+|-)(\d+)$/
+                    ) {
+                        # parse instances inside a group
                         $this->state(INSTANCE);
+                    } elsif (grep(/^$token_qm$/, keys(%$types))) {
+                        # parse for types
+                        $this->state(ID);
+                        $this->curr_type($token);
                     } else {
                         die("unexpected keyword $token");
                     }
@@ -111,10 +123,20 @@ sub parse_token {
         } case INSTANCE {
             my $count = $this->prev_token;
             my $id = $token;
-            my $item = $this->items->{$id};
+            my $item = $this->items->{$id} ? $this->items->{$id} : $this->groups->{$id};
 
-            print "DBG $count $id $item->{weight}\n";
-            # FIXME add item to current group
+            if (!grep(/^$id$/, @{$this->identifiers})) {
+                die("indentifier $id not defined");
+            }
+
+            #print "DBG $count $id ";
+            #print $item->{weight} if $item->{weight};
+            #print "\n";
+
+            # add item to current group
+            # TODO record $count
+            my $group = $this->current_group();
+            push(@{$group->{items}}, $item);
 
             $this->state(KEYWORD);
         } case ID {
@@ -124,7 +146,7 @@ sub parse_token {
                 } case "group" {
                     $this->push_group($token);
                 } else {
-                    die;
+                    die("unexpected prev_token $this->prev_token in ID state");
                 }
             }
 
@@ -136,7 +158,7 @@ sub parse_token {
             die unless ($token eq "=");
             $this->state(VALUE);
         } case VALUE {
-            if ($token eq "newline" || $token eq "}") {
+            if ($token eq "\n" || $token eq "}") {
                 my $item = $this->current_item();
                 if ($this->prev_keyword eq "weight") {
                     $item->{$this->prev_keyword} = $this->parse_weight($this->value);
@@ -165,8 +187,10 @@ sub push_item {
     push(@{$this->id_stack}, $id);
 
     my $item = {};
-    $item->{id} = $this->current_id();
-    $this->items->{$this->current_id()} = $item;
+    $item->{id} = $this->current_id;
+    $this->items->{$item->{id}} = $item;
+
+    push(@{$this->identifiers}, $item->{id});
 }
 
 sub push_group {
@@ -175,16 +199,16 @@ sub push_group {
     push(@{$this->id_stack}, $id);
 
     my $group = {};
-    $group->{id} = $this->current_id();
-    $this->groups->{$this->current_id()} = $group;
+    $group->{id} = $this->current_id;
+    $this->groups->{$group->{id}} = $group;
+
+    push(@{$this->identifiers}, $group->{id});
 }
 
 sub pop_item {
     my ($this) = @_;
 
     my $item = $this->current_item();
-    #FIXME
-    ##$this->print_item($item);
 
     my $id = pop(@{$this->id_stack});
 
@@ -198,8 +222,20 @@ sub pop_group {
     my ($this) = @_;
 
     my $group = $this->current_group();
-    #FIXME
-    ##$this->print_item($item);
+
+    # sum up weights for group and store in "weight" attribute
+    my $weight = 0;
+    for my $item (@{$group->{items}}) {
+        $weight += $item->{weight} ? $item->{weight} : 0;
+    }
+    $group->{weight} = $weight;
+
+    print "DBG $group->{id}\n";
+    for my $item (@{$group->{items}}) {
+        print "DBG $item->{id} $item->{weight}\n";
+    }
+    print "DBG SUBTOTAL $group->{weight}\n";
+    print "DBG \n";
 
     my $id = pop(@{$this->id_stack});
 
