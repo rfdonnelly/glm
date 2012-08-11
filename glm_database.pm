@@ -126,7 +126,7 @@ sub parse_token {
             my $item = $this->items->{$id} ? $this->items->{$id} : $this->groups->{$id};
 
             if (!grep(/^$id$/, @{$this->identifiers})) {
-                die("indentifier $id not defined");
+                die("indentifier '$id' not defined");
             }
 
             #print "DBG $count $id ";
@@ -134,9 +134,12 @@ sub parse_token {
             #print "\n";
 
             # add item to current group
-            # TODO record $count
             my $group = $this->current_group();
-            push(@{$group->{items}}, $item);
+            my $item_inst = {
+                item => $item,
+                count => $count,
+            };
+            push(@{$group->{items}}, $item_inst);
 
             $this->state(KEYWORD);
         } case ID {
@@ -225,8 +228,8 @@ sub pop_group {
 
     # sum up weights for group and store in "weight" attribute
     my $weight = 0;
-    for my $item (@{$group->{items}}) {
-        $weight += $item->{weight} ? $item->{weight} : 0;
+    for my $item_inst (@{$group->{items}}) {
+        $weight += $item_inst->{item}->{weight} ? $item_inst->{count} * $item_inst->{item}->{weight} : 0;
     }
     $group->{weight} = $weight;
 
