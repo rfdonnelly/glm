@@ -4,6 +4,7 @@ use strict;
 use FindBin qw($Bin $Script);
 
 use lib "$Bin";
+use glm_preprocessor;
 use glm_database;
 use glm_manifest;
 
@@ -18,10 +19,12 @@ unless (GetOptions(
     print_usage();
 };
 
-print_usage() && exit() if (scalar(@ARGV) != 2);
+#print_usage() && exit() if (scalar(@ARGV) != 2);
+#print_usage() && exit() if (scalar(@ARGV) != 1);
 
-my $db = glm_database->new(filename => shift);
-my $manifest = glm_manifest->new(filename => shift, db => $db);
+my $preprocessor = glm_preprocessor->new(filenames => \@ARGV);
+my $db = glm_database->new(input_handle => $preprocessor->input_handle);
+my $manifest = glm_manifest->new(db => $db);
 
 exit(0);
 

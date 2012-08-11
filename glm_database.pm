@@ -39,7 +39,7 @@ has 'prev_keyword' => (isa => 'Str', is => 'rw');
 has 'prev_token' => (isa => 'Str', is => 'rw');
 has 'curr_type' => (isa => 'Str', is => 'rw');
 
-has 'filename' => (isa => 'Str', is => 'rw', required => 1);
+has 'input_handle' => (isa => 'FileHandle', is => 'rw', required => 1);
 
 # supported types and their attributes
 my $types = {
@@ -61,7 +61,7 @@ sub BUILD {
 sub load {
     my ($this) = @_;
 
-    open(my $fh, "<", $this->filename);
+    my $fh = $this->input_handle;
 
     while (<$fh>) {
         next if (m/\s*#/); # skip full-line comments
@@ -233,12 +233,12 @@ sub pop_group {
     }
     $group->{weight} = $weight;
 
-    print "DBG $group->{id}\n";
-    for my $item (@{$group->{items}}) {
-        print "DBG $item->{id} $item->{weight}\n";
-    }
-    print "DBG SUBTOTAL $group->{weight}\n";
-    print "DBG \n";
+#    print "DBG $group->{id}\n";
+#    for my $item_inst (@{$group->{items}}) {
+#        print "DBG $item_inst->{count} $item_inst->{item}->{id} $item_inst->{item}->{weight}\n";
+#    }
+#    print "DBG SUBTOTAL $group->{weight}\n";
+#    print "DBG \n";
 
     my $id = pop(@{$this->id_stack});
 

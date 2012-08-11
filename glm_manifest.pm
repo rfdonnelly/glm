@@ -16,13 +16,13 @@ use constant {
 
 use constant KG_PER_OZ => 0.0283495231;
 
-has 'state' => (isa => 'Int', is => 'rw', default=>SECTION);
-has 'section' => (isa => 'Str', is => 'rw');
-has 'section_weight' => (isa => 'Num', is => 'rw');
-has 'section_weights' => (isa => 'HashRef[Num]', is => 'rw', default => sub { {} });
+#has 'state' => (isa => 'Int', is => 'rw', default=>SECTION);
+#has 'section' => (isa => 'Str', is => 'rw');
+#has 'section_weight' => (isa => 'Num', is => 'rw');
+#has 'section_weights' => (isa => 'HashRef[Num]', is => 'rw', default => sub { {} });
 
 
-has 'filename' => (isa => 'Str', is => 'rw', required => 1);
+#has 'filename' => (isa => 'Str', is => 'rw', required => 1);
 has 'db' => (isa => 'glm_database', is => 'rw', required => 1);
 
 # "constructor"
@@ -33,6 +33,32 @@ sub BUILD {
 }
 
 sub load {
+    my ($this) = @_;
+
+    my $db = $this->db;
+
+    for my $id (keys(%{$db->groups})) {
+        my $group = $db->groups->{$id};
+        print("$id\n");
+
+        for my $item_inst (@{$group->{items}}) {
+            my $count = $item_inst->{count};
+            my $item = $item_inst->{item};
+            my $weight = $item_inst->{count} * $item->{weight};
+            my $weight_str = $this->sprint_weight(abs($weight));
+
+            printf("%+3d %-30s %15s", $count, $this->sprint_id($item->{id}), $weight_str);
+            printf(" -- %s", $item->{desc}) if (exists($item->{desc}));
+            print("\n");
+        }
+
+        my $weight_str = $this->sprint_weight($group->{weight});
+        printf("%-34s %15s\n", "SUBTOTAL", $weight_str);
+        print("\n");
+    }
+}
+
+sub load2 {
     my ($this) = @_;
 
     open(my $fh, "<", $this->filename);
