@@ -37,24 +37,27 @@ sub load {
 
     my $db = $this->db;
 
-    for my $id (keys(%{$db->groups})) {
-        my $group = $db->groups->{$id};
-        print("$id\n");
+    for my $id (@{$db->identifiers}) {
+        if ($db->groups->{$id}) {
+            my $group = $db->groups->{$id};
+            print("$id\n");
 
-        for my $item_inst (@{$group->{items}}) {
-            my $count = $item_inst->{count};
-            my $item = $item_inst->{item};
-            my $weight = $item_inst->{count} * $item->{weight};
-            my $weight_str = $this->sprint_weight(abs($weight));
+            for my $item_inst (@{$group->{items}}) {
+                my $count = $item_inst->{count};
+                my $item = $item_inst->{item};
+                my $weight_str = $item->{weight} ? 
+                $this->sprint_weight(abs($item_inst->{count} * $item->{weight})) :
+                "FIXME";
 
-            printf("%+3d %-30s %15s", $count, $this->sprint_id($item->{id}), $weight_str);
-            printf(" -- %s", $item->{desc}) if (exists($item->{desc}));
+                printf("%+3d %-30s %15s", $count, $this->sprint_obj_id($item), $weight_str);
+                printf(" -- %s", $item->{desc}) if (exists($item->{desc}));
+                print("\n");
+            }
+
+            my $weight_str = $this->sprint_weight($group->{weight});
+            printf("%-34s %15s\n", "SUBTOTAL", $weight_str);
             print("\n");
         }
-
-        my $weight_str = $this->sprint_weight($group->{weight});
-        printf("%-34s %15s\n", "SUBTOTAL", $weight_str);
-        print("\n");
     }
 }
 
@@ -142,6 +145,19 @@ sub sprint_id {
 
     return join(' ', map {ucfirst($_)} split(/_|::/,$id));
 }
+
+sub sprint_obj_id {
+    my ($this, $o) = @_;
+
+    my $id = $o->{id};
+
+    if ($o->{type} eq "group") {
+        return $id;
+    } else {
+        return join(' ', map {ucfirst($_)} split(/_|::/,$id));
+    }
+}
+
 
 sub sprint_weight {
     my ($this, $kg) = @_;

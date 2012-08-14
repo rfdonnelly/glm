@@ -68,6 +68,7 @@ sub load {
         s/\s+#.*//; # strip end-of-line comment
         s/^\s+//; # strip leading whitespace
 
+
         my @tokens = split(/\s+/);
         for my $token (@tokens) {
             $this->parse_token($token);
@@ -192,6 +193,7 @@ sub push_item {
 
     my $item = {};
     $item->{id} = $id;
+    $item->{type} = "item";
     $this->items->{$id} = $item;
 
     push(@{$this->identifiers}, $id);
@@ -205,6 +207,7 @@ sub push_group {
 
     my $group = {};
     $group->{id} = $id;
+    $group->{type} = "group";
     $this->groups->{$id} = $group;
 
     push(@{$this->identifiers}, $id);
