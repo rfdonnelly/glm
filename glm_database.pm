@@ -348,7 +348,7 @@ sub parse_weight {
     $val = $this->parse_measure($expr, 'g', 1/1000);
     return $val if ($val);
 
-    die("$Script: ERROR: unable to parse volume $expr\n");
+    die("$Script: ERROR: unable to parse weight '$expr'\n");
 }
 
 1;
