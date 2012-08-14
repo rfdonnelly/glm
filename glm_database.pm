@@ -64,7 +64,7 @@ sub load {
     my $fh = $this->input_handle;
 
     while (<$fh>) {
-        next if (m/\s*#/); # skip full-line comments
+        next if (m/^\s*#/); # skip full-line comments
         s/\s+#.*//; # strip end-of-line comment
         s/^\s+//; # strip leading whitespace
 
