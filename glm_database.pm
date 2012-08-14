@@ -188,24 +188,26 @@ sub push_item {
     my ($this, $id) = @_;
 
     push(@{$this->id_stack}, $id);
+    $id = $this->current_id;
 
     my $item = {};
-    $item->{id} = $this->current_id;
-    $this->items->{$item->{id}} = $item;
+    $item->{id} = $id;
+    $this->items->{$id} = $item;
 
-    push(@{$this->identifiers}, $item->{id});
+    push(@{$this->identifiers}, $id);
 }
 
 sub push_group {
     my ($this, $id) = @_;
 
     push(@{$this->id_stack}, $id);
+    $id = $this->current_id;
 
     my $group = {};
-    $group->{id} = $this->current_id;
-    $this->groups->{$group->{id}} = $group;
+    $group->{id} = $id;
+    $this->groups->{$id} = $group;
 
-    push(@{$this->identifiers}, $group->{id});
+    push(@{$this->identifiers}, $id);
 }
 
 sub pop_item {
