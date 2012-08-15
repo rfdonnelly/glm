@@ -34,6 +34,16 @@ sub load {
     $this->input_handle($fh);
 }
 
+sub print {
+    my ($this) = @_;
+
+    my $fh = $this->input_handle;
+
+    while (<$fh>) {
+        print;
+    }
+}
+
 sub read {
     my ($this, $filename, $out) = @_;
 
