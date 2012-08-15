@@ -127,7 +127,14 @@ sub parse_token {
             my $item = $this->items->{$id} ? $this->items->{$id} : $this->groups->{$id};
 
             if (!grep(/^$id$/, @{$this->identifiers})) {
-                die("indentifier '$id' not defined");
+                warn("indentifier '$id' not defined");
+
+                if (!$item) {
+                    # create item placeholder
+                    $item = { 
+                        id => $id
+                    };
+                }
             }
 
             #print "DBG $count $id ";

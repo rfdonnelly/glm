@@ -151,7 +151,7 @@ sub sprint_obj_id {
 
     my $id = $o->{id};
 
-    if ($o->{type} eq "group") {
+    if ($o->{type} && $o->{type} eq "group") {
         return $id;
     } else {
         return join(' ', map {ucfirst($_)} split(/_|::/,$id));
