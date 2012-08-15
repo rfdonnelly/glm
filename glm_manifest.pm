@@ -47,7 +47,7 @@ sub load {
                 my $item = $item_inst->{item};
                 my $weight_str = $item->{weight} ? 
                 $this->sprint_weight(abs($item_inst->{count} * $item->{weight})) :
-                "FIXME";
+                    "TBD";
 
                 printf("%+3d %-30s %15s", $count, $this->sprint_obj_id($item), $weight_str);
                 printf(" -- %s", $item->{desc}) if (exists($item->{desc}));
