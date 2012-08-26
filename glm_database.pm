@@ -126,6 +126,7 @@ sub parse_token {
             my $id = $token;
             my $item = $this->items->{$id} ? $this->items->{$id} : $this->groups->{$id};
 
+            # warn if id undefined
             if (!grep(/^$id$/, @{$this->identifiers})) {
                 warn("indentifier '$id' not defined");
 
@@ -136,10 +137,6 @@ sub parse_token {
                     };
                 }
             }
-
-            #print "DBG $count $id ";
-            #print $item->{weight} if $item->{weight};
-            #print "\n";
 
             # add item to current group
             my $group = $this->current_group();
